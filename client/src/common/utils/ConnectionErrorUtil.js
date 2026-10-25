@@ -32,6 +32,10 @@ const isRdpServerDisconnectMessage = (message) => [
 ].some(fragment => message.includes(fragment));
 
 export const shouldAutoReconnect = ({ protocol, statusCode, rawMessage }) => {
+    const msg = String(rawMessage || "").toLowerCase();
+    if (msg.includes("auth") || msg.includes("denied") || msg.includes("permission") || msg.includes("identity not found") || msg.includes("unauthorized")) {
+        return false;
+    }
     if (normalizeProtocol(protocol) !== "rdp") return true;
 
     const code = normalizeStatusCode(statusCode);

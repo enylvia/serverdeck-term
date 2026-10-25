@@ -1,53 +1,65 @@
 :root
-  --accent-color: #314BD3
+  --accent-color: #3B82F6
 
 :root[data-theme="dark"]
-  --background: #000A12
-  --terminal: #13181C
-  --lighter-background: #0D161E
-  --dialog-background: rgba(0, 0, 0, 0.25)
-  --gray-full: #202429
-  --darker-gray: rgba(34, 36, 42, 0.6)
-  --dark-gray: rgba(255, 255, 255, 0.05)
-  --gray: rgba(255, 255, 255, 0.1)
-  --light-gray: #F6F6F6
+  --background: #0F1115
+  --terminal: #0B0C0E
+  --lighter-background: #171A21
+  --dialog-background: rgba(15, 17, 21, 0.75)
+  --gray-full: #1E2024
+  --darker-gray: #1E232D
+  --dark-gray: #262B36
+  --gray: #424754
+  --outline: #8C909F
+  --outline-variant: #262B36
+  --light-gray: #E2E2E8
   --primary: var(--accent-color)
-  --primary-opacity: color-mix(in srgb, var(--accent-color) 25%, transparent)
-  --error: #a44747
-  --error-opacity: rgba(164, 71, 71, 0.25)
-  --success: #29C16A
-  --success-opacity: rgba(41, 193, 106, 0.25)
-  --warning: #DC5600
-  --warning-opacity: rgba(220, 86, 0, 0.25)
+  --primary-opacity: color-mix(in srgb, var(--accent-color) 20%, transparent)
+  --primary-container: #4D8EFF
+  --on-primary-container: #00285D
+  --error: #EF4444
+  --error-opacity: rgba(239, 68, 68, 0.2)
+  --success: #10B981
+  --success-opacity: rgba(16, 185, 129, 0.2)
+  --tertiary: #4EDEA3
+  --tertiary-opacity: rgba(78, 222, 163, 0.2)
+  --warning: #F59E0B
+  --warning-opacity: rgba(245, 158, 11, 0.2)
   --white: #FFFFFF
-  --subtext: #B7B7B7
-  --text: #FFFFFF
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15)
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15)
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.18)
-  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.35), 0 16px 48px rgba(0, 0, 0, 0.22)
+  --subtext: #94A3B8
+  --text: #E2E2E8
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2)
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2)
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25)
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.45), 0 16px 48px rgba(0, 0, 0, 0.3)
 
 :root[data-theme="light"]
-  --background: #FFFFFF
-  --terminal: #F5F5F5
-  --lighter-background: #F0F0F0
-  --dialog-background: rgba(245, 245, 245, 0.31)
-  --gray-full: #E5E5E5
-  --darker-gray: rgba(241, 239, 239, 0.92)
-  --dark-gray: rgba(0, 0, 0, 0.05)
-  --gray: rgba(0, 0, 0, 0.1)
-  --light-gray: #333333
+  --background: #F8FAFC
+  --terminal: #0B0C0E
+  --lighter-background: #FFFFFF
+  --dialog-background: rgba(255, 255, 255, 0.85)
+  --gray-full: #E2E8F0
+  --darker-gray: #F1F5F9
+  --dark-gray: #E2E8F0
+  --gray: #CBD5E1
+  --outline: #64748B
+  --outline-variant: #E2E8F0
+  --light-gray: #1E293B
   --primary: var(--accent-color)
   --primary-opacity: color-mix(in srgb, var(--accent-color) 15%, transparent)
-  --error: #d85959
-  --error-opacity: rgba(216, 89, 89, 0.15)
-  --success: #29C16A
-  --success-opacity: rgba(41, 193, 106, 0.15)
-  --warning: #DC5600
-  --warning-opacity: rgba(220, 86, 0, 0.15)
-  --white: #000000
-  --subtext: #666666
-  --text: #000000
+  --primary-container: #3B82F6
+  --on-primary-container: #FFFFFF
+  --error: #DC2626
+  --error-opacity: rgba(220, 38, 38, 0.15)
+  --success: #10B981
+  --success-opacity: rgba(16, 185, 129, 0.15)
+  --tertiary: #059669
+  --tertiary-opacity: rgba(5, 150, 105, 0.15)
+  --warning: #D97706
+  --warning-opacity: rgba(217, 119, 6, 0.15)
+  --white: #0F172A
+  --subtext: #64748B
+  --text: #0F172A
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.05)
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.06)
   --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.08)
@@ -56,28 +68,34 @@
 :root[data-theme="oled"]
   --background: #000000
   --terminal: #000000
-  --lighter-background: #0a0a0a
-  --dialog-background: rgba(0, 0, 0, 0.5)
-  --gray-full: #1a1a1a
-  --darker-gray: rgba(20, 20, 20, 0.8)
-  --dark-gray: rgba(255, 255, 255, 0.05)
-  --gray: rgba(255, 255, 255, 0.1)
-  --light-gray: #F6F6F6
+  --lighter-background: #090A0D
+  --dialog-background: rgba(0, 0, 0, 0.8)
+  --gray-full: #111317
+  --darker-gray: #171A21
+  --dark-gray: #20242D
+  --gray: #2D333F
+  --outline: #8C909F
+  --outline-variant: #20242D
+  --light-gray: #E2E2E8
   --primary: var(--accent-color)
   --primary-opacity: color-mix(in srgb, var(--accent-color) 25%, transparent)
-  --error: #a44747
-  --error-opacity: rgba(164, 71, 71, 0.25)
-  --success: #29C16A
-  --success-opacity: rgba(41, 193, 106, 0.25)
-  --warning: #DC5600
-  --warning-opacity: rgba(220, 86, 0, 0.25)
+  --primary-container: #4D8EFF
+  --on-primary-container: #00285D
+  --error: #EF4444
+  --error-opacity: rgba(239, 68, 68, 0.25)
+  --success: #10B981
+  --success-opacity: rgba(16, 185, 129, 0.25)
+  --tertiary: #4EDEA3
+  --tertiary-opacity: rgba(78, 222, 163, 0.25)
+  --warning: #F59E0B
+  --warning-opacity: rgba(245, 158, 11, 0.25)
   --white: #FFFFFF
-  --subtext: #888888
+  --subtext: #8C909F
   --text: #FFFFFF
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25)
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25)
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.3)
-  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.5), 0 16px 48px rgba(0, 0, 0, 0.35)
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3)
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.35)
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6), 0 16px 48px rgba(0, 0, 0, 0.4)
 
 $background: var(--background)
 $dialog-background: var(--dialog-background)
@@ -87,13 +105,18 @@ $gray-full: var(--gray-full)
 $darker-gray: var(--darker-gray)
 $dark-gray: var(--dark-gray)
 $gray: var(--gray)
+$outline: var(--outline)
+$outline-variant: var(--outline-variant)
 $light-gray: var(--light-gray)
 $primary: var(--primary)
 $primary-opacity: var(--primary-opacity)
+$primary-container: var(--primary-container)
 $error: var(--error)
 $error-opacity: var(--error-opacity)
 $success: var(--success)
 $success-opacity: var(--success-opacity)
+$tertiary: var(--tertiary)
+$tertiary-opacity: var(--tertiary-opacity)
 $warning: var(--warning)
 $warning-opacity: var(--warning-opacity)
 $white: var(--white)

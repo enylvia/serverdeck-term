@@ -1,3 +1,5 @@
+@use "@/common/styles/breakpoints"
+
 .xterm-container
   position: relative
   width: 100%
@@ -9,6 +11,9 @@
     box-sizing: border-box
     overflow: hidden
 
+    @media (max-width: breakpoints.$mobile)
+      padding-bottom: 2.3rem
+
     .xterm
       height: 100% !important
       margin: 0 !important
@@ -19,6 +24,8 @@
         height: 100% !important
 
       .xterm-viewport
-        overflow-y: hidden !important
+        overflow-y: auto !important
+        -webkit-overflow-scrolling: touch
+        touch-action: pan-y
         margin: 0 !important
         padding: 0 !important

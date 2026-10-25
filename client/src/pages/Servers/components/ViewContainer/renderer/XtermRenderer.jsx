@@ -23,6 +23,7 @@ import { getWebSocketUrl } from "@/common/utils/ConnectionUtil.js";
 import { postRequest } from "@/common/utils/RequestUtil.js";
 import "@xterm/xterm/css/xterm.css";
 import "./styles/xterm.sass";
+import MobileTerminalToolbar from "./components/MobileTerminalToolbar";
 
 const PASSWORD_PROMPT_REGEX = /^[^$#%>]*(password|passphrase)[^:\r\n]*:\s?$/i;
 const ANSI_ESCAPE_REGEX = /\x1b(?:\[[0-9;?]*[a-zA-Z]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[()][0-9A-B]|[a-zA-Z=><])/g;
@@ -90,6 +91,91 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
     const typingParticipants = getParticipants(session.joinSessionId || session.id)
         .filter(participant => participant.typing && participant.accountId !== userContext?.user?.id);
     const [showSnippetsMenu, setShowSnippetsMenu] = useState(false);
+    const [stickyCtrl, setStickyCtrl] = useState(false);
+    const [stickyAlt, setStickyAlt] = useState(false);
+    const stickyCtrlRef = useRef(false);
+    const stickyAltRef = useRef(false);
+
+    useEffect(() => {
+        stickyCtrlRef.current = stickyCtrl;
+    }, [stickyCtrl]);
+
+    useEffect(() => {
+        stickyAltRef.current = stickyAlt;
+    }, [stickyAlt]);
+
+    const [bottomOffset, setBottomOffset] = useState(0);
+    const handleResizeRef = useRef(null);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const handleViewportChange = () => {
+            if (window.visualViewport) {
+                const vv = window.visualViewport;
+                const diff = window.innerHeight - vv.height - (vv.offsetTop || 0);
+                setBottomOffset(Math.max(0, Math.round(diff)));
+            }
+        };
+
+        window.visualViewport?.addEventListener("resize", handleViewportChange);
+        window.visualViewport?.addEventListener("scroll", handleViewportChange);
+        window.addEventListener("resize", handleViewportChange);
+        handleViewportChange();
+
+        return () => {
+            window.visualViewport?.removeEventListener("resize", handleViewportChange);
+            window.visualViewport?.removeEventListener("scroll", handleViewportChange);
+            window.removeEventListener("resize", handleViewportChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        handleResizeRef.current?.();
+    }, [bottomOffset]);
+
+    const handleSendKey = useCallback((keyStr) => {
+        const textarea = termRef.current?.textarea;
+        if (textarea && textarea.value) {
+            const pending = textarea.value;
+            textarea.value = "";
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(pending);
+            }
+        }
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(keyStr);
+        }
+        termRef.current?.focus();
+    }, []);
+
+    const handleMobilePaste = useCallback(async () => {
+        try {
+            const text = await navigator.clipboard?.readText?.();
+            if (text && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(text);
+            }
+        } catch (err) {
+            console.warn("Mobile clipboard paste error:", err);
+        }
+        termRef.current?.focus();
+    }, []);
+
+    const handleToggleKeyboard = useCallback(() => {
+        const textarea = termRef.current?.textarea;
+        if (document.activeElement === textarea) {
+            textarea?.blur();
+        } else {
+            termRef.current?.focus();
+        }
+    }, []);
+
+    const handleTouchFocus = useCallback((e) => {
+        if (e.target?.closest?.('.mobile-terminal-toolbar') || 
+            e.target?.closest?.('.context-menu') || 
+            e.target?.closest?.('.password-hint')) return;
+        termRef.current?.focus();
+    }, []);
     const [connectionError, setConnectionError] = useState(() => getSessionError?.(session.id) || null);
     const [passwordPrompt, setPasswordPrompt] = useState(null);
     const [passwordHintIndex, setPasswordHintIndex] = useState(-1);
@@ -429,7 +515,9 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
         const term = new Xterm({
             cursorBlink: cursorBlink,
             cursorStyle: cursorStyle,
-            fontSize: clampFontSize(effectiveFontSize + zoomOffsetRef.current),
+            fontSize: clampFontSize((typeof window !== 'undefined' && (window.innerWidth <= 768 || 'ontouchstart' in window)
+                ? Math.max(11, Math.min(13, Math.floor(window.innerWidth / 30)))
+                : effectiveFontSize) + zoomOffsetRef.current),
             fontFamily: effectiveFont,
             theme: {
                 background: (theme === "light" && isLightTerminalTheme) ? "#F3F3F3" : terminalTheme.background,
@@ -485,16 +573,22 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
         };
 
         const handleResize = () => {
-            fitAddon.fit();
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(`\x01${term.cols},${term.rows}`);
-            }
-            if (passwordPromptRef.current) movePasswordHint(computePasswordHintPosition());
-            if (suggestionRef.current) setSuggestionAnchor(computePasswordHintPosition());
-            syncCursorAnchor();
+            try {
+                fitAddon.fit();
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(`\x01${term.cols},${term.rows}`);
+                }
+                if (passwordPromptRef.current) movePasswordHint(computePasswordHintPosition());
+                if (suggestionRef.current) setSuggestionAnchor(computePasswordHintPosition());
+                syncCursorAnchor();
+            } catch (err) {}
         };
 
+        handleResizeRef.current = handleResize;
         window.addEventListener("resize", handleResize);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", handleResize);
+        }
         const resizeObserver = new ResizeObserver(() => {
             if (ws.readyState === ws.OPEN) handleResize();
         });
@@ -597,8 +691,9 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
             ws.send(`\x01${term.cols},${term.rows}`);
         }
 
-        const reportError = (message) => {
-            markSessionErrored?.(session.id, message);
+        const reportError = (message, shouldAutoReconnect = true) => {
+            connectionLoaderRef.current?.hide();
+            markSessionErrored?.(session.id, message, { autoReconnect: shouldAutoReconnect });
             setConnectionError(message);
         };
 
@@ -622,7 +717,8 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
             if (isCleaningUp) return;
 
             if (event.code >= 4000 && event.reason) {
-                reportError(mapConnectionError(event.reason, t));
+                const isAuthError = /auth|denied|permission/i.test(event.reason);
+                reportError(mapConnectionError(event.reason, t), !isAuthError);
             } else if (event.code !== 1000 && event.code !== 1005) {
                 reportError(t("common.errors.connection.closedUnexpectedly"));
             } else {
@@ -696,12 +792,27 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
 
         term.onData((data) => {
             if (passwordPromptRef.current) hidePasswordHint();
-            ws.send(data);
+
+            let outgoing = data;
+            if (stickyCtrlRef.current && data.length === 1) {
+                stickyCtrlRef.current = false;
+                setStickyCtrl(false);
+                const code = data.toUpperCase().charCodeAt(0);
+                if (code >= 64 && code <= 95) {
+                    outgoing = String.fromCharCode(code - 64);
+                }
+            } else if (stickyAltRef.current && data.length === 1) {
+                stickyAltRef.current = false;
+                setStickyAlt(false);
+                outgoing = `\x1b${data}`;
+            }
+
+            ws.send(outgoing);
 
             if (broadcastModeRef.current && terminalRefs?.current) {
                 Object.entries(terminalRefs.current).forEach(([sessionId, refs]) => {
                     if (sessionId !== session.id && refs.ws && refs.ws.readyState === WebSocket.OPEN) {
-                        refs.ws.send(data);
+                        refs.ws.send(outgoing);
                     }
                 });
             }
@@ -867,6 +978,9 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
                 registerTerminalRef(session.id, null);
             }
             window.removeEventListener("resize", handleResize);
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener("resize", handleResize);
+            }
             resizeObserver.disconnect();
             ref.current?.removeEventListener('paste', handleNativePaste, true);
             window.removeEventListener("keydown", handleCopyPasteKeydown, true);
@@ -886,14 +1000,14 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
     }, [sessionToken, effectiveFont, effectiveFontSize, cursorStyle, cursorBlink, selectedTheme, isShared]);
 
     return (
-        <div className="xterm-container" onMouseDownCapture={handleMouseDown} onContextMenuCapture={handleContextMenu}>
+        <div className="xterm-container" onMouseDownCapture={handleMouseDown} onContextMenuCapture={handleContextMenu} onTouchStart={handleTouchFocus}>
             <ConnectionLoader onReady={(loader) => { connectionLoaderRef.current = loader; }} />
             {connectionError && (
                 <ConnectionError message={connectionError} onClose={() => disconnectFromServer(session.id)}
                                  onReconnect={() => (reconnectNow || reconnectSession)?.(session.id)}
                                  reconnectInfo={reconnectInfo} />
             )}
-            <div ref={ref} className="xterm-wrapper" />
+            <div ref={ref} className="xterm-wrapper" style={bottomOffset > 0 ? { paddingBottom: `${bottomOffset + 38}px` } : undefined} />
             <TypingIndicators anchor={cursorAnchor} participants={typingParticipants} />
             {!isShared && passwordPrompt && passwordIdentities.length > 0 && (
                 <PasswordFillHint
@@ -1006,6 +1120,16 @@ const XtermRenderer = ({ session, disconnectFromServer, reconnectSession, reconn
                     activeSession={session}
                 />
             )}
+            <MobileTerminalToolbar
+                onSendKey={handleSendKey}
+                onPaste={handleMobilePaste}
+                onToggleKeyboard={handleToggleKeyboard}
+                stickyCtrl={stickyCtrl}
+                setStickyCtrl={setStickyCtrl}
+                stickyAlt={stickyAlt}
+                setStickyAlt={setStickyAlt}
+                bottomOffset={bottomOffset}
+            />
         </div>
     );
 };

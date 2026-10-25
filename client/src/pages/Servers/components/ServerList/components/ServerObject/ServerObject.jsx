@@ -4,6 +4,7 @@ import { getIconPath } from "@/common/utils/iconUtils.js";
 import "./styles.sass";
 import { ServerContext } from "@/common/contexts/ServerContext.jsx";
 import { useLiveSessions } from "@/common/contexts/LiveSessionContext.jsx";
+import { useActiveSessions } from "@/common/contexts/SessionContext.jsx";
 import AvatarStack from "@/common/components/AvatarStack";
 import Tooltip from "@/common/components/Tooltip";
 import { getSessionOwnerLabel } from "@/common/utils/avatar.js";
@@ -16,6 +17,7 @@ import { DropIndicator } from "../DropIndicator";
 export const ServerObject = ({ id, name, position, folderId, organizationId, nestedLevel, icon, type, connectToServer, status, tags = [], hibernatedSessionCount = 0 }) => {
     const { loadServers, getServerById } = useContext(ServerContext);
     const { getLiveSessionsForEntry } = useLiveSessions();
+    const { activeSessions, setActiveSessionId } = useActiveSessions();
     const { t } = useTranslation();
     const [dropPlacement, setDropPlacement] = useState(null);
     const elementRef = useRef(null);
@@ -81,13 +83,26 @@ export const ServerObject = ({ id, name, position, folderId, organizationId, nes
         })
         : undefined;
 
-    const connect = () => {
-        connectToServer(server.id, server.identities?.[0]);
+    const handleConnectOrSwitch = () => {
+        const targetServer = server || getServerById(id);
+        if (!targetServer) return;
+
+        // 1. If this server has an active session, focus it immediately
+        const existingSession = activeSessions?.find(s => s.server?.id === targetServer.id);
+        if (existingSession) {
+            setActiveSessionId(existingSession.id);
+            return;
+        }
+
+        // 2. Otherwise trigger connection
+        connectToServer(targetServer.id, targetServer.identities?.[0]);
     };
 
     const noteLine = server?.showNoteInList
         ? (server?.notes || "").split(/\r?\n/)[0].trim()
         : "";
+
+    const protocolLabel = server?.protocol?.toUpperCase() || (type && type.startsWith("pve-") ? "PVE" : "SSH");
 
     return (
         <div 
@@ -98,9 +113,13 @@ export const ServerObject = ({ id, name, position, folderId, organizationId, nes
                 elementRef.current = node;
                 dragRef(dropRef(node));
             }}
-            onDoubleClick={connect}
+            onClick={handleConnectOrSwitch}
+            onDoubleClick={handleConnectOrSwitch}
             onMouseLeave={() => setDropPlacement(null)}>
             <DropIndicator show={isOver && dropPlacement === 'before'} placement="before" />
+            
+            <span className={`server-status-dot ${status === 'offline' ? 'dot-offline' : 'dot-online'}`} />
+
             <div className={
                 type && type.startsWith('pve-') 
                     ? (status === 'offline' || status === 'stopped' ? "pve-icon pve-icon-offline" : "pve-icon")
@@ -108,10 +127,14 @@ export const ServerObject = ({ id, name, position, folderId, organizationId, nes
             }>
                 <Icon path={getIconPath(icon)} />
             </div>
+
             <div className="server-text">
                 <p className="server-name truncate-text">{name}</p>
                 {noteLine && <span className="server-note truncate-text">{noteLine}</span>}
             </div>
+
+            <span className="server-protocol-pill">{protocolLabel}</span>
+
             {hibernatedSessionCount > 0 && (
                 <Tooltip text={`${hibernatedSessionCount} hibernated session${hibernatedSessionCount > 1 ? 's' : ''}`} delay={500} asChild>
                     <div className="hibernation-indicator">

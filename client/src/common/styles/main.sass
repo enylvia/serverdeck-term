@@ -4,6 +4,7 @@
 :root
   --title-bar-height: 0px
   --content-height: 100vh
+  --content-height: 100dvh
   --mobile-nav-height: 0px
   --safe-area-top: env(safe-area-inset-top, 0px)
   --ui-scale: 1
@@ -12,14 +13,35 @@
   @media (max-width: breakpoints.$mobile)
     --mobile-nav-height: calc(3.5rem + env(safe-area-inset-bottom, 0px))
     --content-height: calc(100vh - var(--safe-area-top))
+    --content-height: calc(100dvh - var(--safe-area-top))
 
 body, html
   margin: 0
   overflow: hidden
   background-color: colors.$background
   color: colors.$white
-  font-family: "Plus Jakarta Sans", sans-serif
-  font-weight: 700
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+  font-weight: 400
+  letter-spacing: -0.01em
+  -webkit-font-smoothing: antialiased
+
+code, pre, kbd, .font-code, .font-code-sm, .font-code-md, .font-code-lg
+  font-family: "JetBrains Mono", monospace
+
+.status-pulse
+  box-shadow: 0 0 10px rgba(78, 222, 163, 0.45)
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite
+
+@keyframes pulse-glow
+  0%, 100%
+    opacity: 1
+    transform: scale(1)
+  50%
+    opacity: 0.65
+    transform: scale(0.92)
+
+.primary-glow
+  box-shadow: 0 0 14px rgba(77, 142, 255, 0.3)
 
 body.tauri-mode
   --title-bar-height: 40px
@@ -52,6 +74,10 @@ body.tauri-mode
 
   @media (max-width: breakpoints.$mobile)
     padding-bottom: var(--mobile-nav-height)
+
+  body.terminal-active &
+    @media (max-width: breakpoints.$mobile)
+      padding-bottom: 0 !important
 
   > *
     min-width: 0
@@ -93,11 +119,11 @@ body.tauri-mode
 .left-pane-slot
   display: flex
   height: 100%
-
+  width: 100%
+  pointer-events: auto
 
 .sidebar
-  width: calc(5rem + 2px)
-  flex-shrink: 0
+  display: none !important
 
 .main-content
   flex: 1
@@ -108,10 +134,14 @@ body.tauri-mode
 
 @media (max-width: breakpoints.$mobile)
   .left-pane
-    position: static
-    transform: none
-    box-shadow: none
-    pointer-events: auto
+    position: absolute
+    top: 0
+    left: 0
+    width: 0
+    height: 0
+    pointer-events: none
+    overflow: visible
+    z-index: 1000
 
     &.collapsed,
     &.collapsed.open
@@ -126,12 +156,20 @@ body.tauri-mode
         transition: none
         box-shadow: none
 
+body.terminal-active .mobile-nav
+  @media (max-width: breakpoints.$mobile)
+    display: none !important
+
 ::-webkit-scrollbar
-  width: 13px
+  width: 6px
+  height: 6px
+
+::-webkit-scrollbar-track
+  background: colors.$background
 
 ::-webkit-scrollbar-thumb
-  background: colors.$lighter-background
-  border-radius: 10px
+  background: colors.$dark-gray
+  border-radius: 4px
 
 ::-webkit-scrollbar-thumb:hover
-  filter: brightness(1.2)
+  background: colors.$gray

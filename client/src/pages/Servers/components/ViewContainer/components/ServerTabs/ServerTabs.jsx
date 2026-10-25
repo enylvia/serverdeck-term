@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import Icon from "@mdi/react";
-import { mdiClose, mdiViewSplitVertical, mdiChevronLeft, mdiChevronRight, mdiMenu, mdiFullscreen, mdiFullscreenExit, mdiNoteEditOutline } from "@mdi/js";
+import { mdiClose, mdiViewSplitVertical, mdiChevronLeft, mdiChevronRight, mdiMenu, mdiFullscreen, mdiFullscreenExit, mdiNoteEditOutline, mdiFolderNetwork, mdiConsole } from "@mdi/js";
 import { useDrag, useDrop } from "react-dnd";
 import { useContextMenu } from "@/common/components/ContextMenu";
 import { useActiveSessions } from "@/common/contexts/SessionContext.jsx";
@@ -142,6 +142,8 @@ export const ServerTabs = ({
     fullscreenEnabled,
     onFullscreenToggle,
     reveal = false,
+    openSFTP,
+    openTerminalFromFileManager,
 }) => {
 
     const tabsRef = useRef(null);
@@ -320,6 +322,20 @@ export const ServerTabs = ({
                 <div className="layout-controls">
                     <Icon path={mdiMenu} className={`layout-btn ${menu.isOpen ? "active" : ""}`}
                         aria-label={t("servers.tabs.sessionMenu")} onClick={openActiveMenu} />
+                    {activeSession?.server && (activeSession.server.protocol === "ssh" || activeSession.server.protocol === "sftp") && (
+                        <Icon
+                            path={activeSession.type === "sftp" ? mdiConsole : mdiFolderNetwork}
+                            className={`layout-btn sftp-toggle-btn ${activeSession.type === "sftp" ? "active" : ""}`}
+                            title={activeSession.type === "sftp" ? "Open Terminal" : "Open SFTP File Manager"}
+                            onClick={() => {
+                                if (activeSession.type === "sftp") {
+                                    openTerminalFromFileManager ? openTerminalFromFileManager(activeSession.id, null) : null;
+                                } else {
+                                    openSFTP?.(activeSession.server.id, activeSession.identity ? { id: activeSession.identity } : null);
+                                }
+                            }}
+                        />
+                    )}
                     <Icon path={mdiViewSplitVertical} className={`layout-btn split-btn ${layoutMode !== "single" ? "active" : ""}`}
                         aria-label={layoutMode === "single" ? t("servers.tabs.enableSplitView") : t("servers.tabs.disableSplitView")}
                         onClick={onToggleSplit} />
@@ -366,7 +382,8 @@ export const ServerTabs = ({
                          onOpenShortcuts={() => setShowShortcuts(true)}
                          onSplitSession={onSplitSession} onPopOut={popOutSession}
                          onOpenNotes={openNotes} onDuplicate={duplicateSession}
-                         onHibernate={hibernateSession} onReconnect={reconnectSession} onCloseSession={closeSession} />
+                         onHibernate={hibernateSession} onReconnect={reconnectSession} onOpenSftp={() => menuSession?.server && openSFTP?.(menuSession.server.id, menuSession.identity ? { id: menuSession.identity } : null)}
+                         onCloseSession={closeSession} />
 
             <SnippetsMenu visible={showSnippets} onClose={() => setShowSnippets(false)}
                           onSelect={handleSnippetSelect} activeSession={activeSession} />

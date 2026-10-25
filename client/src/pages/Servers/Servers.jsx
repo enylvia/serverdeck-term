@@ -16,9 +16,12 @@ import { useActiveSessions } from "@/common/contexts/SessionContext.jsx";
 import { useLiveSessions } from "@/common/contexts/LiveSessionContext.jsx";
 import { usePreferences } from "@/common/contexts/PreferencesContext.jsx";
 import { useAutoReconnect } from "@/common/hooks/useAutoReconnect.js";
+import { useBodyClass } from "@/common/hooks/useBodyClass.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ServerContext } from "@/common/contexts/ServerContext.jsx";
 import { StateStreamContext, STATE_TYPES } from "@/common/contexts/StateStreamContext.jsx";
+import { IdentityContext } from "@/common/contexts/IdentityContext.jsx";
+import { useToast } from "@/common/contexts/ToastContext.jsx";
 import { isTauri } from "@/common/utils/TauriUtil.js";
 import { getTabId, getBrowserId, requiresIdentity, canConnectWithoutPrompt } from "@/common/utils/ConnectionUtil.js";
 import { postRequest, deleteRequest } from "@/common/utils/RequestUtil";
@@ -63,6 +66,8 @@ export const Servers = () => {
     const { getServerById, servers } = useContext(ServerContext);
     const { registerHandler, isConnected } = useContext(StateStreamContext);
     const { autoReconnect } = usePreferences();
+    const { identities } = useContext(IdentityContext);
+    const { sendToast } = useToast();
     const sessionLayout = useSessionLayout();
     const location = useLocation();
     const navigate = useNavigate();
@@ -113,6 +118,7 @@ export const Servers = () => {
     }, []);
 
     const visibleSessions = activeSessions.filter(s => !poppedOutSessions.includes(s.id));
+    useBodyClass("terminal-active", visibleSessions.length > 0);
 
     useEffect(() => {
         const handleToggle = () => setMobileServerListOpen(prev => !prev);
@@ -213,20 +219,43 @@ export const Servers = () => {
 
     const connectToServer = async (serverId, identity, overrideRenderer, placement = null) => {
         const server = getServerById(serverId);
+        if (!server) return;
 
-        const hibernated = hibernatedSessions.find(s => s.server.id === serverId && s.identity === identity?.id);
+        const existingActive = activeSessionsRef.current?.find(s => s.server?.id === server.id);
+        if (existingActive) {
+            setActiveSessionId(existingActive.id);
+            return;
+        }
+
+        let resolvedIdentity = null;
+        if (identity && typeof identity === "object" && identity.id !== undefined) {
+            resolvedIdentity = identity;
+        } else if (typeof identity === "number" || typeof identity === "string") {
+            resolvedIdentity = { id: parseInt(identity, 10) };
+        } else if (server.identities?.[0] !== undefined) {
+            const firstId = server.identities[0];
+            resolvedIdentity = { id: typeof firstId === "object" ? firstId.id : parseInt(firstId, 10) };
+        } else if (identities && identities.length > 0) {
+            resolvedIdentity = { id: identities[0].id };
+        }
+
+        const hibernated = hibernatedSessions.find(s => s.server.id === serverId && s.identity === resolvedIdentity?.id);
         if (hibernated) {
             sessionLayout.placeSession(hibernated.id, placement);
             resumeConnection(hibernated.id);
             return;
         }
 
-        if (server && !canConnectWithoutPrompt(server)) {
+        if (!canConnectWithoutPrompt(server) && !resolvedIdentity) {
             openDirectConnect(server, placement);
             return;
         }
 
-        initiateConnection({ server: { ...server, renderer: overrideRenderer || server.renderer }, identity, placement });
+        initiateConnection({
+            server: { ...server, renderer: overrideRenderer || server.renderer || "terminal" },
+            identity: resolvedIdentity,
+            placement,
+        });
     };
 
     const connectFromDrop = (serverId, placement) => {
@@ -285,15 +314,15 @@ export const Servers = () => {
         const { server, identity = null, type = null, directIdentity = null, scriptId = null, scriptName = null, placement = null, reconnectSessionId = null, reconnectKey: existingReconnectKey = null } = options;
         try {
             const existingSession = activeSessionsRef.current.find(s => s.id === reconnectSessionId);
+            const resolvedIdentityId = identity?.id ?? (typeof identity === "number" ? identity : (server?.identities?.[0]?.id ?? server?.identities?.[0] ?? undefined));
+
             const payload = {
                 entryId: server.id,
-                identityId: identity?.id,
+                identityId: resolvedIdentityId,
                 connectionReason,
                 type,
                 tabId: getTabId(),
                 browserId: getBrowserId(),
-                displayDpi: Math.round((window.devicePixelRatio || 1) * 96),
-                ...(reconnectSessionId && { connectionGeneration: existingSession?.connectionGeneration ?? 0 }),
             };
 
             if (directIdentity) payload.directIdentity = directIdentity;
@@ -308,7 +337,8 @@ export const Servers = () => {
 
             const sessionData = {
                 server,
-                identity: identity?.id,
+                identity: resolvedIdentityId,
+                directIdentity: directIdentity || existingSession?.directIdentity || undefined,
                 id: session.sessionId,
                 type: type || undefined,
                 organizationId: organizationId,
@@ -331,6 +361,7 @@ export const Servers = () => {
             return true;
         } catch (error) {
             console.error("Failed to connect session", error);
+            sendToast("Connection Failed", error?.message || error?.error || "Could not connect to host");
             return false;
         }
     };
@@ -436,6 +467,7 @@ export const Servers = () => {
         const result = await initiateConnection({
             server: session.server,
             identity: session.identity ? { id: session.identity } : null,
+            directIdentity: session.directIdentity || null,
             type: session.type ?? null,
             scriptId: session.scriptId ?? null,
             scriptName: session.scriptName ?? null,
@@ -615,7 +647,16 @@ export const Servers = () => {
     };
 
     const handleDirectConnect = (directIdentity) => {
-        initiateConnection({ server: directConnectServer, directIdentity, placement: directConnectPlacement });
+        const targetServer = directConnectServer;
+        const targetPlacement = directConnectPlacement;
+        closeDirectConnectDialog();
+        if (targetServer) {
+            if (directIdentity?.savedIdentityId) {
+                initiateConnection({ server: targetServer, identity: { id: directIdentity.savedIdentityId }, placement: targetPlacement });
+            } else {
+                initiateConnection({ server: targetServer, directIdentity, placement: targetPlacement });
+            }
+        }
     };
 
     useEffect(() => {
@@ -638,6 +679,46 @@ export const Servers = () => {
             handleAutoConnect();
         }
     }, [servers, location.search]);
+
+    useEffect(() => {
+        const handleExternalConnect = (e) => {
+            if (e.detail?.serverId) {
+                connectToServer(e.detail.serverId, e.detail.identity);
+            }
+        };
+        const handleExternalServerDialog = (e) => {
+            setServerDialogProtocol(e.detail?.protocol || null);
+            setServerDialogOpen(true);
+        };
+        const handleExternalEditServer = (e) => {
+            setEditServerId(e.detail?.id || null);
+            setServerDialogOpen(true);
+        };
+        const handleExternalOpenSFTP = (e) => {
+            if (e.detail?.serverId) {
+                openSFTP(e.detail.serverId, e.detail.identity);
+            }
+        };
+        const handleExternalDirectConnect = (e) => {
+            if (e.detail?.server) {
+                openDirectConnect(e.detail.server);
+            }
+        };
+
+        window.addEventListener("connectToServer", handleExternalConnect);
+        window.addEventListener("openServerDialog", handleExternalServerDialog);
+        window.addEventListener("openEditServer", handleExternalEditServer);
+        window.addEventListener("openDirectConnect", handleExternalDirectConnect);
+        window.addEventListener("openSFTP", handleExternalOpenSFTP);
+
+        return () => {
+            window.removeEventListener("connectToServer", handleExternalConnect);
+            window.removeEventListener("openServerDialog", handleExternalServerDialog);
+            window.removeEventListener("openEditServer", handleExternalEditServer);
+            window.removeEventListener("openDirectConnect", handleExternalDirectConnect);
+            window.removeEventListener("openSFTP", handleExternalOpenSFTP);
+        };
+    }, [connectToServer, openDirectConnect]);
 
     return (
         <div className="server-page">
@@ -675,7 +756,8 @@ export const Servers = () => {
                             setEditServerId={setEditServerId} openSFTP={openSFTP} openBrowser={openBrowser}
                             hibernatedSessions={hibernatedSessions} resumeSession={resumeConnection}
                             joinLiveSession={joinLiveSession}
-                            openDirectConnect={openDirectConnect} runScript={runScript}
+                            openDirectConnect={openDirectConnect}
+                    runScript={runScript}
                             openNotes={openNotes}
                             openPortForward={isTauri() ? openPortForward : undefined}
                             mobileOpen={mobileServerListOpen} setMobileOpen={setMobileServerListOpen} />,
@@ -689,6 +771,10 @@ export const Servers = () => {
                     openSFTP={openSFTP}
                     openBrowser={openBrowser}
                     openDirectConnect={openDirectConnect}
+                    setServerDialogOpen={(protocol = "ssh") => {
+                        setServerDialogProtocol(protocol);
+                        setServerDialogOpen(true);
+                    }}
                 />
             }
             {visibleSessions.length > 0 &&
@@ -705,6 +791,7 @@ export const Servers = () => {
                                setOpenFileEditors={setOpenFileEditors}
                                openTerminalFromFileManager={openTerminalFromFileManager}
                                sessionLayout={sessionLayout}
+                               openSFTP={openSFTP}
                                connectFromDrop={connectFromDrop} />}
             {openFileEditors.map((editor, index) => (
                 editor.type === "preview" ? (

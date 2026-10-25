@@ -20,6 +20,13 @@ import { UserContext } from "@/common/contexts/UserContext.jsx";
 import Loading from "@/common/components/Loading";
 import { ErrorBoundary } from "@/common/components/ErrorBoundary";
 import TitleBar from "@/common/components/TitleBar";
+import TopNavBar from "@/common/components/TopNavBar";
+import SideNavRail from "@/common/components/SideNavRail";
+import SettingsDialog from "@/common/components/SettingsDialog";
+import SupportDialog from "@/common/components/SupportDialog";
+import ActionConfirmDialog from "@/common/components/ActionConfirmDialog";
+import { useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ConnectionErrorBanner from "@/common/components/ConnectionErrorBanner";
 import { waitForTauri } from "@/common/utils/TauriUtil.js";
 import MobileNav from "@/common/components/MobileNav";
@@ -38,7 +45,32 @@ const PreferencesWrapper = ({ children }) => {
 };
 
 const AppContent = () => {
-    const { user } = useContext(UserContext);
+    const { t } = useTranslation();
+    const location = useLocation();
+    const { user, logout } = useContext(UserContext);
+    const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+    const [settingsTab, setSettingsTab] = useState("account");
+    const [supportDialogOpen, setSupportDialogOpen] = useState(false);
+    const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+
+    useEffect(() => {
+        const handleOpenSettings = (e) => {
+            setSettingsTab(e.detail?.tab || "account");
+            setSettingsDialogOpen(true);
+        };
+        const handleOpenSupport = () => setSupportDialogOpen(true);
+        const handleRequestLogout = () => setLogoutDialogOpen(true);
+
+        window.addEventListener("openSettings", handleOpenSettings);
+        window.addEventListener("openSupport", handleOpenSupport);
+        window.addEventListener("requestLogout", handleRequestLogout);
+
+        return () => {
+            window.removeEventListener("openSettings", handleOpenSettings);
+            window.removeEventListener("openSupport", handleOpenSupport);
+            window.removeEventListener("requestLogout", handleRequestLogout);
+        };
+    }, []);
     const [tauriReady, setTauriReady] = useState(false);
     const [isLeftPaneCollapsed, setIsLeftPaneCollapsed] = useState(false);
     const [isLeftPaneHovering, setIsLeftPaneHovering] = useState(false);
@@ -102,19 +134,19 @@ const AppContent = () => {
                                                 <QuickActionProvider>
                                                     <div className="app-wrapper" onMouseLeave={() => setIsLeftPaneHovering(false)}>
                                                         <TitleBar showTabs />
+                                                        <TopNavBar />
                                                         <ConnectionErrorBanner />
                                                         <div className="content-wrapper">
                                                             <div
                                                                 className={`left-pane${isLeftPaneCollapsed ? " collapsed" : ""}${isLeftPaneVisible ? " open" : ""}`}
                                                                 ref={leftPaneRef}
                                                             >
-                                                                <Suspense fallback={<Loading />}>
-                                                                    <Sidebar onToggleCollapse={toggleLeftPane} />
-                                                                </Suspense>
                                                                 <div
                                                                     className="left-pane-slot"
                                                                     id="left-pane-slot"
-                                                                />
+                                                                >
+                                                                    {location.pathname !== '/servers' && <SideNavRail />}
+                                                                </div>
                                                             </div>
                                                             <div className="main-content">
                                                                 <Suspense fallback={<Loading />}>
@@ -122,6 +154,22 @@ const AppContent = () => {
                                                                 </Suspense>
                                                             </div>
                                                         </div>
+                                                        
+                                                        <SettingsDialog
+                                                            open={settingsDialogOpen}
+                                                            onClose={() => setSettingsDialogOpen(false)}
+                                                            initialTab={settingsTab}
+                                                        />
+                                                        <SupportDialog
+                                                            open={supportDialogOpen}
+                                                            onClose={() => setSupportDialogOpen(false)}
+                                                        />
+                                                        <ActionConfirmDialog
+                                                            open={logoutDialogOpen}
+                                                            setOpen={setLogoutDialogOpen}
+                                                            text={t('common.sidebar.logoutConfirmText', { username: user?.username })}
+                                                            onConfirm={logout}
+                                                        />
                                                         <MobileNav />
                                                     </div>
                                                 </QuickActionProvider>

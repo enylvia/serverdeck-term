@@ -1,0 +1,115 @@
+@use "@/common/styles/colors"
+@use "@/common/styles/breakpoints"
+
+.mobile-terminal-toolbar
+  display: none
+
+  @media (max-width: breakpoints.$mobile)
+    display: flex
+    flex-direction: column
+    position: fixed
+    bottom: 0
+    left: 0
+    right: 0
+    z-index: 1000
+    background: rgba(14, 17, 23, 0.98)
+    backdrop-filter: blur(16px)
+    border-top: 1px solid rgba(255, 255, 255, 0.15)
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6)
+    padding-bottom: env(safe-area-inset-bottom, 0px)
+    transition: transform 0.1s ease
+
+  &.collapsed
+    background: transparent
+    border-top: none
+    box-shadow: none
+    pointer-events: none
+
+    .toolbar-toggle-btn
+      pointer-events: auto
+      background: rgba(22, 27, 34, 0.9)
+      border: 1px solid rgba(255, 255, 255, 0.12)
+      border-radius: 0.35rem 0 0 0
+
+  .toolbar-toggle-btn
+    align-self: flex-end
+    display: flex
+    align-items: center
+    justify-content: center
+    background: transparent
+    border: none
+    color: colors.$subtext
+    padding: 0.15rem 0.5rem
+    cursor: pointer
+    transition: color 0.15s ease
+
+    &:active
+      color: colors.$white
+
+  .toolbar-keys-scroll
+    display: flex
+    align-items: center
+    gap: 0.35rem
+    padding: 0.25rem 0.4rem 0.4rem 0.4rem
+    overflow-x: auto
+    -webkit-overflow-scrolling: touch
+    scrollbar-width: none
+
+    &::-webkit-scrollbar
+      display: none
+
+    .toolbar-key
+      display: flex
+      align-items: center
+      justify-content: center
+      min-width: 2.2rem
+      height: 1.9rem
+      padding: 0 0.45rem
+      background: #1e2430
+      border: 1px solid rgba(255, 255, 255, 0.12)
+      border-radius: 0.3rem
+      color: colors.$white
+      font-family: "JetBrains Mono", monospace
+      font-size: 0.72rem
+      font-weight: 600
+      flex-shrink: 0
+      cursor: pointer
+      user-select: none
+      -webkit-tap-highlight-color: transparent
+      transition: background 0.1s ease, transform 0.05s ease, border-color 0.1s ease
+
+      &:active
+        background: #2b3345
+        transform: scale(0.94)
+
+      &.modifier
+        color: colors.$primary
+        border-color: rgba(77, 142, 255, 0.3)
+
+        &.active
+          background: colors.$primary
+          color: #001a42
+          border-color: colors.$primary
+          box-shadow: 0 0 8px rgba(77, 142, 255, 0.5)
+
+      &.danger
+        color: #f87171
+        border-color: rgba(248, 113, 113, 0.3)
+
+        &:active
+          background: rgba(248, 113, 113, 0.2)
+
+      &.arrow
+        color: colors.$subtext
+
+        &:active
+          color: colors.$white
+
+      &.symbol
+        color: #93c5fd
+
+      &.action
+        color: colors.$subtext
+
+        &:active
+          color: colors.$white

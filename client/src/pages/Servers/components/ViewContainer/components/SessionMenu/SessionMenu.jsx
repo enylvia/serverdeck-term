@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
     mdiBroadcast,
     mdiClose,
+    mdiFolderNetwork,
     mdiCloseCircle,
     mdiCodeBraces,
     mdiContentDuplicate,
@@ -60,6 +61,7 @@ export const SessionMenu = ({
     onSplitSession,
     onPopOut,
     onOpenNotes,
+    onOpenSftp,
     onReconnect,
     onDuplicate,
     onHibernate,
@@ -148,6 +150,10 @@ export const SessionMenu = ({
                         </>
                     )}
                     {canShare && <ContextMenuSeparator />}
+                    {(server?.protocol === "ssh" || server?.protocol === "sftp") && onOpenSftp && session.type !== "sftp" && (
+                        <ContextMenuItem icon={mdiFolderNetwork} label="Open SFTP (File Manager)"
+                                         onClick={onOpenSftp} />
+                    )}
                     {canOpenNotes && (
                         <ContextMenuItem icon={mdiNoteEditOutline} label={t("servers.tabs.contextMenu.openNotes")}
                                          onClick={() => onOpenNotes(server.id)} />

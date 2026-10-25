@@ -36,6 +36,7 @@ export const ViewContainer = ({
                                   setOpenFileEditors,
                                   openTerminalFromFileManager,
                                   sessionLayout,
+                                  openSFTP,
                                   connectFromDrop,
                               }) => {
     const { tree } = sessionLayout;
@@ -405,7 +406,8 @@ export const ViewContainer = ({
                                       registerTerminalRef={registerTerminalRef} broadcastMode={broadcastMode}
                                       terminalRefs={terminalRefs} updateProgress={updateSessionProgress}
                                       layoutMode={layoutMode} onBroadcastToggle={toggleBroadcastMode}
-                                      onFullscreenToggle={toggleFullscreenMode} />;
+                                      onFullscreenToggle={toggleFullscreenMode}
+                                      onOpenSftp={() => openSFTP?.(session.server.id, session.identity ? { id: session.identity } : null)} />;
             case "sftp":
                 return <FileRenderer key={rendererKey} session={session} disconnectFromServer={scopedDisconnect}
                                      setOpenFileEditors={setOpenFileEditors} isActive={session.id === activeSessionId}
@@ -486,6 +488,8 @@ export const ViewContainer = ({
                     fullscreenEnabled={fullscreenMode}
                     onFullscreenToggle={toggleFullscreenMode}
                     openNotes={openNotes}
+                    openSFTP={openSFTP}
+                    openTerminalFromFileManager={openTerminalFromFileManager}
                     hibernateSession={hibernateSession} duplicateSession={duplicateSession} />
     );
 

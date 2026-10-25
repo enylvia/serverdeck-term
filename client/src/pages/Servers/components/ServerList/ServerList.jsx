@@ -1,6 +1,7 @@
 import "./styles.sass";
 import ServerSearch from "./components/ServerSearch";
 import { useContext, useEffect, useState, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ServerContext } from "@/common/contexts/ServerContext.jsx";
 import { useLiveSessions } from "@/common/contexts/LiveSessionContext.jsx";
@@ -14,6 +15,12 @@ import { useBodyClass } from "@/common/hooks/useBodyClass.js";
 import Icon from "@mdi/react";
 import {
     mdiCursorDefaultClick,
+    mdiServerNetwork,
+    mdiChartLine,
+    mdiLogout,
+    mdiShieldCheckOutline,
+    mdiCodeBraces,
+    mdiKey,
     mdiTag,
     mdiConnection,
     mdiContentCopy,
@@ -114,6 +121,8 @@ export const ServerList = ({
     setMobileOpen,
 }) => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    const location = useLocation();
     const { servers, loadServers, getServerById } = useContext(ServerContext);
     const { getLiveSessionsForEntry } = useLiveSessions();
     const { identities } = useContext(IdentityContext);
@@ -131,7 +140,7 @@ export const ServerList = ({
     const [width, setWidth] = useState(() => {
         const stored = localStorage.getItem("serverListWidth");
         const parsed = stored !== null ? parseInt(stored, 10) : NaN;
-        return Number.isFinite(parsed) ? parsed : 288;
+        return Number.isFinite(parsed) ? parsed : 264;
     });
     const [isResizing, setIsResizing] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("serverListCollapsed") === "true");
@@ -145,7 +154,15 @@ export const ServerList = ({
     const [isMobile, setIsMobile] = useState(false);
     const [deleteConfirmDialog, setDeleteConfirmDialog] = useState({ open: false, name: "", id: null, isFolder: false });
 
-    const contextMenu = useContextMenu();
+    const contextMenu = useContextMenu();    useEffect(() => {
+        const handleFleetSearch = (e) => {
+            if (typeof e.detail === 'string') setSearch(e.detail);
+        };
+        window.addEventListener('fleetSearch', handleFleetSearch);
+        return () => window.removeEventListener('fleetSearch', handleFleetSearch);
+    }, []);
+
+
 
     useEffect(() => {
         const checkMobile = () => {
@@ -161,19 +178,30 @@ export const ServerList = ({
     useEffect(() => {
         if (!isMobile || !mobileOpen) return;
         const handleClickOutside = (e) => {
-            if (serverListRef.current && !serverListRef.current.contains(e.target) && 
-                !e.target.closest('.server-list-toggle') &&
-                !e.target.closest('.mobile-nav')) {
-                setMobileOpen?.(false);
+            const path = e.composedPath ? e.composedPath() : [];
+            if (serverListRef.current && (serverListRef.current.contains(e.target) || path.includes(serverListRef.current))) {
+                return;
             }
+            if (e.target.closest?.('.mobile-drawer-toggle') || e.target.closest?.('.mobile-nav') || e.target.closest?.('.server-list-toggle')) {
+                return;
+            }
+            setMobileOpen?.(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('touchstart', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('touchstart', handleClickOutside);
         };
     }, [isMobile, mobileOpen, setMobileOpen]);
+
+    const handleClusterNav = (path) => {
+        navigate(path);
+        if (isMobile && setMobileOpen) setMobileOpen(false);
+    };
+
+    const handleConnectToServerWrapped = (id, identity) => {
+        if (isMobile && setMobileOpen) setMobileOpen(false);
+        connectToServer?.(id, identity);
+    };
 
     const server = contextClickedId ? (contextClickedType === "server-object" || contextClickedType?.startsWith("pve-")) ? getServerById(contextClickedId) : null : null;
     const isOrgFolder = contextClickedId && contextClickedId.toString().startsWith("org-");
@@ -383,7 +411,7 @@ export const ServerList = ({
 
     const getIdentity = (id = null) => identities?.find(i => i.id === (id || server?.identities[0]));
     const connect = (id = null) => connectToServer(server?.id, getIdentity(id));
-    const connectSFTP = (id = null) => openSFTP(server?.id, getIdentity(id));
+    const connectSFTP = (id = null) => openSFTP ? openSFTP(server?.id, getIdentity(id)) : null;
     const openBrowserSession = (id = null) => openBrowser(server?.id, getIdentity(id));
 
     const getIdentityName = (identityId) => {
@@ -565,7 +593,46 @@ export const ServerList = ({
                 ref={serverListRef}
                 onMouseDown={!isMobile && isCollapsed ? startResizing : undefined}>
             {(!isCollapsed || (isMobile && mobileOpen)) && (
-                <div className="server-list-inner" ref={dropRef}>
+                <div className="server-list-inner" ref={dropRef} onTouchStart={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    {/* Brand identity block from Gambar 2 */}
+                    <div className="sidebar-brand-block">
+                        <div className="brand-badge-box">
+                            <Icon path={mdiServerNetwork} size={0.7} />
+                        </div>
+                        <div className="brand-text-col">
+                            <span className="brand-name">ServerDeck</span>
+                            <span className="brand-sub">v2.4.1 Node Cluster</span>
+                        </div>
+                        <span className="status-pulse-dot" title="Nodes Synchronized" />
+                    </div>
+
+                    {/* CLUSTER DIRECTORY */}
+                    <div className="sidebar-section-label">CLUSTER DIRECTORY</div>
+                    <nav className="sidebar-nav-cluster">
+                        <div className={`nav-item ${location.pathname === '/servers' ? 'active' : ''}`} onClick={() => handleClusterNav('/servers')}>
+                            <Icon path={mdiServerNetwork} size={0.75} className="nav-icon" />
+                            <span className="nav-label">Fleet</span>
+                            <span className="live-pill">{servers ? `${servers.length} live` : "0 live"}</span>
+                        </div>
+                        <div className={`nav-item ${location.pathname.startsWith('/monitoring') ? 'active' : ''}`} onClick={() => handleClusterNav('/monitoring')}>
+                            <Icon path={mdiChartLine} size={0.75} className="nav-icon" />
+                            <span className="nav-label">Monitoring</span>
+                        </div>
+                        <div className={`nav-item ${location.pathname.startsWith('/snippets') ? 'active' : ''}`} onClick={() => handleClusterNav('/snippets')}>
+                            <Icon path={mdiCodeBraces} size={0.75} className="nav-icon" />
+                            <span className="nav-label">Snippets</span>
+                        </div>
+                        {hasPermission(Permission.AUDIT_VIEW) && (
+                            <div className={`nav-item ${location.pathname.startsWith('/audit') ? 'active' : ''}`} onClick={() => handleClusterNav('/audit')}>
+                                <Icon path={mdiShieldCheckOutline} size={0.75} className="nav-icon" />
+                                <span className="nav-label">Audit</span>
+                            </div>
+                        )}
+                    </nav>
+
+                    {/* PINNED ENDPOINTS */}
+                    <div className="sidebar-section-label">PINNED ENDPOINTS</div>
+
                     <div className="search-container">
                         <ServerSearch search={search} setSearch={setSearch} />
                         <div ref={tagButtonRef}
@@ -589,7 +656,7 @@ export const ServerList = ({
                             onContextMenu={handleContextMenu}
                             ref={serversContainerRef}>
                             <ServerEntries entries={renameStateServers} setRenameStateId={setRenameStateId}
-                                nestedLevel={0} connectToServer={connectToServer} hibernatedSessions={hibernatedSessions} />
+                                nestedLevel={0} connectToServer={handleConnectToServerWrapped} hibernatedSessions={hibernatedSessions} />
                         </div>
                     )}
                     {servers && servers.length === 0 && (
@@ -599,6 +666,24 @@ export const ServerList = ({
                             <p>{t("servers.addServerNote")}</p>
                         </div>
                     )}
+
+                    <div className="sidebar-bottom-links">
+                        <div className="footer-link" onClick={() => { if (isMobile && setMobileOpen) setMobileOpen(false); window.dispatchEvent(new CustomEvent("openSettings", { detail: { tab: "identities" } })); }}>
+                            <Icon path={mdiKey} size={0.7} />
+                            <span>SSH Keys</span>
+                            <span className="footer-link-badge">
+                                {identities && identities.length > 0 ? `${identities.length} keys` : "ed25519"}
+                            </span>
+                        </div>
+                        <div className="footer-link" onClick={() => { if (isMobile && setMobileOpen) setMobileOpen(false); window.dispatchEvent(new CustomEvent("openSettings", { detail: { tab: "account" } })); }}>
+                            <Icon path={mdiCog} size={0.7} />
+                            <span>Settings</span>
+                        </div>
+                        <div className="footer-link footer-link-danger" onClick={() => { if (isMobile && setMobileOpen) setMobileOpen(false); window.dispatchEvent(new CustomEvent("requestLogout")); }}>
+                            <Icon path={mdiLogout} size={0.7} />
+                            <span>Logout</span>
+                        </div>
+                    </div>
 
                     <ContextMenu
                         isOpen={contextMenu.isOpen}
@@ -804,9 +889,9 @@ export const ServerList = ({
                                     </>
                                 )}
 
-                                {server?.identities?.length > 0 && server?.protocol === "ssh" && (
+                                {(server?.protocol === "ssh" || server?.protocol === "sftp") && (
                                     <>
-                                        {server.identities.length === 1 ? (
+                                        {(!server.identities || server.identities.length <= 1) ? (
                                             <ContextMenuItem
                                                 icon={mdiFolderOpen}
                                                 label={t("servers.contextMenu.openSFTP")}

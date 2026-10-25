@@ -42,6 +42,8 @@ export const DialogProvider = ({ disableClosing, open, children, onClose, isDirt
     }, []);
 
     useEffect(() => {
+        if (!open) return;
+
         const handleClick = (event) => {
             if (showConfirm) {
                 if (!confirmRef.current?.contains(event.target)) {
@@ -61,7 +63,7 @@ export const DialogProvider = ({ disableClosing, open, children, onClose, isDirt
 
         document.addEventListener("mousedown", handleClick);
         return () => document.removeEventListener("mousedown", handleClick);
-    }, [ref, tryClose, showConfirm]);
+    }, [open, ref, tryClose, showConfirm]);
 
     useEffect(() => {
         if (!open || disableClosing) return;
